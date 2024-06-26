@@ -1,0 +1,198 @@
+import os
+import glob2
+from pathlib2 import Path
+import pandas as pd
+import numpy as np
+import cv2
+import matplotlib.pyplot as plt
+import random
+from tqdm import tqdm
+
+# Путь к распакованному датасету
+dataset_path = 'path/to/chest_xray'
+
+# Функция для получения списка файлов изображений и их меток
+def get_image_files_and_labels(base_path):
+    categories = ['NORMAL', 'PNEUMONIA']
+    data = []
+    for category in categories:
+        category_path = os.path.join(base_path, category)
+        for img_file in glob2.glob(os.path.join(category_path, '*.jpeg')):
+            data.append((img_file, category))
+    return pd.DataFrame(data, columns=['filepath', 'label'])
+
+# Получение данных для тренировочной, валидационной и тестовой выборок
+train_path = os.path.join(dataset_path, 'train')
+val_path = os.path.join(dataset_path, 'val')
+test_path = os.path.join(dataset_path, 'test')
+
+train_data = get_image_files_and_labels(train_path)
+val_data = get_image_files_and_labels(val_path)
+test_data = get_image_files_and_labels(test_path)
+
+# Проверка, что DataFrame не пуст
+if train_data.empty:
+    print("Ошибка: DataFrame train_data пустой!")
+if val_data.empty:
+    print("Ошибка: DataFrame val_data пустой!")
+if test_data.empty:
+    print("Ошибка: DataFrame test_data пустой!")
+
+# Добавление информации о размере изображений в DataFrame
+def add_image_info(data):
+    sizes = []
+    for filepath in tqdm(data['filepath']):
+        img = cv2.imread(filepath)
+        sizes.append(img.shape)
+    data['size'] = sizes
+    return data
+
+# Добавление информации о размерах изображений для тренировочной, валидационной и тестовой выборок
+train_data = add_image_info(train_data)
+val_data = add_image_info(val_data)
+test_data = add_image_info(test_data)
+
+# Сохранение данных в CSV файлы для последующего использования
+train_data.to_csv('train_data.csv', index=False)
+val_data.to_csv('val_data.csv', index=False)
+test_data.to_csv('test_data.csv', index=False)
+
+# Вывод первых нескольких строк данных для каждой выборки
+print("Train data sample:")
+print(train_data.head())
+
+print("Validation data sample:")
+print(val_data.head())
+
+print("Test data sample:")
+print(test_data.head())
+
+# Шаг 3: Анализ одного случайного изображения
+if not train_data.empty:
+    random_image = random.choice(train_data['filepath'].tolist())
+    img = cv2.imread(random_image)
+    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    print("Размер изображения:", gray_img.shape)
+
+    plt.hist(gray_img.ravel(), bins=256, range=(0, 256))
+    plt.title('Гистограмма значений пикселей')
+    plt.xlabel('Значение пикселя')
+    plt.ylabel('Частота')
+    plt.show()
+else:
+    print("Ошибка: DataFrame train_data пустой, невозможно выбрать случайное изображение.")
+
+# Шаг 4: Подсчет количества изображений каждого класса
+def count_images(data):
+    return data['label'].value_counts()
+
+print("Количество изображений в тренировочной выборке:")
+print(count_images(train_data))
+
+print("Количество изображений в валидационной выборке:")
+print(count_images(val_data))
+
+print("Количество изображений в тестовой выборке:")
+print(count_images(test_data))
+
+# Шаг 5: Построение случайной модели
+def random_model(data):
+    predictions = np.random.choice(['NORMAL', 'PNEUMONIA'], len(data))
+    return predictions
+
+train_predictions = random_model(train_data)
+test_predictions = random_model(test_data)
+
+# Шаг 6: Оценка точности случайной модели
+def calculate_accuracy(true_labels, predictions):
+    return (true_labels == predictions).mean()
+
+train_accuracy = calculate_accuracy(train_data['label'], train_predictions)
+test_accuracy = calculate_accuracy(test_data['label'], test_predictions)
+
+print(f"Точность случайной модели на тренировочной выборке: {train_accuracy:.2f}")
+print(f"Точность случайной модели на тестовой выборке: {test_accuracy:.2f}")
+
+# Шаг 7: Модель на основе количества белого
+def white_based_model(data):
+    thresholds = {
+        'NORMAL': 200,
+        'PNEUMONIA': 500,
+    }
+    predictions = []
+    for filepath in data['filepath']:
+        img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+        white_pixels = np.sum(img > 200)
+        if white_pixels > thresholds['PNEUMONIA']:
+            predictions.append('PNEUMONIA')
+        else:
+            predictions.append('NORMAL')
+    return predictions
+
+train_white_predictions = white_based_model(train_data)
+test_white_predictions = white_based_model(test_data)
+
+# Шаг 8: Оценка точности модели на основе количества белого
+train_white_accuracy = calculate_accuracy(train_data['label'], train_white_predictions)
+test_white_accuracy = calculate_accuracy(test_data['label'], test_white_predictions)
+
+print(f"Точность модели на основе количества белого на тренировочной выборке: {train_white_accuracy:.2f}")
+print(f"Точность модели на основе количества белого на тестовой выборке: {test_white_accuracy:.2f}")
+
+# Шаг 9: Учет доли белого, соответствующего костям
+def improved_white_based_model(data, bone_threshold):
+    predictions = []
+    for filepath in data['filepath']:
+        img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+        white_pixels = np.sum(img > 200)
+        total_pixels = img.size
+        bone_pixels = total_pixels * bone_threshold
+        effective_white_pixels = white_pixels - bone_pixels
+        if effective_white_pixels > 0:
+            predictions.append('PNEUMONIA')
+        else:
+            predictions.append('NORMAL')
+    return predictions
+
+bone_threshold = 0.1
+
+train_improved_predictions = improved_white_based_model(train_data, bone_threshold)
+test_improved_predictions = improved_white_based_model(test_data, bone_threshold)
+
+# Шаг 10: Оценка точности и сбалансированной точности новой модели
+train_improved_accuracy = calculate_accuracy(train_data['label'], train_improved_predictions)
+test_improved_accuracy = calculate_accuracy(test_data['label'], test_improved_predictions)
+
+def balanced_accuracy(true_labels, predictions):
+    classes = np.unique(true_labels)
+    recall_per_class = []
+    
+    for cls in classes:
+        true_positives = np.sum((true_labels == cls) & (predictions == cls))
+        false_negatives = np.sum((true_labels == cls) & (predictions != cls))
+        recall = true_positives / (true_positives + false_negatives)
+        recall_per_class.append(recall)
+    
+    balanced_acc = np.mean(recall_per_class)
+    return balanced_acc
+
+train_balanced_accuracy = balanced_accuracy(train_data['label'], train_improved_predictions)
+test_balanced_accuracy = balanced_accuracy(test_data['label'], test_improved_predictions)
+
+print(f"Точность улучшенной модели на тренировочной выборке: {train_improved_accuracy:.2f}")
+print(f"Точность улучшенной модели на тестовой выборке: {test_improved_accuracy:.2f}")
+print(f"Сбалансированная точность улучшенной модели на тренировочной выборке: {train_balanced_accuracy:.2f}")
+print(f"Сбалансированная точность улучшенной модели на тестовой выборке: {test_balanced_accuracy:.2f}")
+
+# Шаг 11: Сбор результатов в таблицу
+results = pd.DataFrame({
+    'Model': ['Random Model', 'White Based Model', 'Improved White Based Model'],
+    'Train Accuracy': [train_accuracy, train_white_accuracy, train_improved_accuracy],
+    'Test Accuracy': [test_accuracy, test_white_accuracy, test_improved_accuracy],
+    'Train Balanced Accuracy': [None, None, train_balanced_accuracy],
+    'Test Balanced Accuracy': [None, None, test_balanced_accuracy],
+})
+
+print("Результаты моделей:")
+print(results)
