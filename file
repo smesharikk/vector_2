@@ -1,5 +1,6 @@
 import math
 
+
 class CyberdyanskBank:
 
     def __init__(self, initial_balance=10000):
@@ -58,7 +59,8 @@ class CyberdyanskBank:
         if shop == SBP_SHOP or amount > 0:
             return 0
         # Получение процента кэшбэка для магазина, либо использование значения по умолчанию
-        percentage = self.cashback_rules.get(shop, self.cashback_rules['default'])
+        percentage = self.cashback_rules.get(
+            shop, self.cashback_rules['default'])
         # Вычисление кэшбэка для расходной операции и округление вверх до ближайшего целого числа
         cashback = math.ceil(abs(amount) * (percentage / 100))
         return cashback
@@ -82,9 +84,11 @@ class CyberdyanskBank:
     def validate_purchase(self, amount):
         # Проверка, что сумма операции не превышает текущий баланс и баланс не станет отрицательным
         if self.balance + amount < 0:
-            print(f"Transaction declined: insufficient funds for amount {amount}")
+            print(
+                f"Transaction declined: insufficient funds for amount {amount}")
             return False
         return True
+
 
 # Константа для обозначения перевода через СБП
 SBP_SHOP = 'СБП'
@@ -124,4 +128,5 @@ for record in history:
 # Проверка начисления кэшбэка для перевода через СБП
 test_purchase = (SBP_SHOP, -1000)
 cashback = bank.calculate_cashback(test_purchase[0], test_purchase[1])
-print(f"Cashback for {test_purchase[0]} with amount {test_purchase[1]}: {cashback}")
+print(
+    f"Cashback for {test_purchase[0]} with amount {test_purchase[1]}: {cashback}")
