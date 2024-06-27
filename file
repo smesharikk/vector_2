@@ -39,18 +39,19 @@ class CyberdyanskBank:
         self.balance += amount + cashback
 
     def add_purchases(self, purchases):
-        valid_purchases = [purchase for purchase in purchases if self.validate_purchase(purchase[2])]
-        if not valid_purchases:
-            return  # Если нет валидных покупок, ничего не делаем
+        # Разделяем покупки на переводы и покупки
+        transfers = [p for p in purchases if p[1] == SBP_SHOP]
+        shopping = [p for p in purchases if p[1] != SBP_SHOP]
 
-        # Распаковка списка покупок в отдельные списки дат, названий магазинов и сумм операций
-        self.buy_dates, self.shop_names, self.money_sum = zip(*valid_purchases)
-        # Вычисление кэшбэка для каждой покупки, исключая переводы через СБП
-        cashbacks = list(map(self.calculate_cashback, self.shop_names, self.money_sum))
-        # Суммирование всех начисленных кэшбэков
-        self.total_cashback = sum(cashbacks)
-        # Обновление текущего баланса с учетом всех операций и начисленного кэшбэка
-        self.balance += sum(self.money_sum) + self.total_cashback
+        # Проверка и добавление переводов
+        valid_transfers = [t for t in transfers if self.validate_purchase(t[2])]
+        for transfer in valid_transfers:
+            self.add_purchase(*transfer)
+
+        # Проверка и добавление покупок
+        valid_shopping = [s for s in shopping if self.validate_purchase(s[2])]
+        for shop in valid_shopping:
+            self.add_purchase(*shop)
 
     def calculate_cashback(self, shop, amount):
         # Исключение перевода через СБП из начисления кэшбэка
