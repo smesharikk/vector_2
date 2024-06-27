@@ -1,198 +1,97 @@
-import os
-import glob2
-from pathlib2 import Path
-import pandas as pd
-import numpy as np
-import cv2
-import matplotlib.pyplot as plt
-import random
-from tqdm import tqdm
+import math
 
-# Путь к распакованному датасету
-dataset_path = 'path/to/chest_xray'
+class CyberdyanskBank:
 
-# Функция для получения списка файлов изображений и их меток
-def get_image_files_and_labels(base_path):
-    categories = ['NORMAL', 'PNEUMONIA']
-    data = []
-    for category in categories:
-        category_path = os.path.join(base_path, category)
-        for img_file in glob2.glob(os.path.join(category_path, '*.jpeg')):
-            data.append((img_file, category))
-    return pd.DataFrame(data, columns=['filepath', 'label'])
+    def __init__(self, initial_balance=10000):
+        # Инициализация начального баланса и текущего баланса
+        self.initial_balance = initial_balance
+        self.balance = initial_balance
+        # Инициализация списков для хранения дат покупок, названий магазинов и сумм операций
+        self.buy_dates = []
+        self.shop_names = []
+        self.money_sum = []
+        # Инициализация правил кэшбэка для различных магазинов
+        self.cashback_rules = {
+            'default': 1,  # По умолчанию 1% кэшбэк на все покупки
+            'Пятёрочка': 5,  # 5% кэшбэк на покупки в супермаркетах
+            'Лента': 5,  # 5% кэшбэк на покупки в супермаркетах
+            'ДНС': 3,  # 3% кэшбэк на покупки в магазинах электроники
+            'Лэтуаль': 10,  # 10% кэшбэк на покупки в магазинах косметики
+        }
+        self.total_cashback = 0  # Инициализация общей суммы начисленного кэшбэка
 
-# Получение данных для тренировочной, валидационной и тестовой выборок
-train_path = os.path.join(dataset_path, 'train')
-val_path = os.path.join(dataset_path, 'val')
-test_path = os.path.join(dataset_path, 'test')
+    def add_purchases(self, purchases):
+        # Распаковка списка покупок в отдельные списки дат, названий магазинов и сумм операций
+        self.buy_dates, self.shop_names, self.money_sum = zip(*purchases)
+        # Вычисление кэшбэка для каждой покупки, исключая переводы через СБП
+        cashbacks = list(map(self.calculate_cashback, self.shop_names, self.money_sum))
+        # Суммирование всех начисленных кэшбэков
+        self.total_cashback = sum(cashbacks)
+        # Обновление текущего баланса с учетом всех операций и начисленного кэшбэка
+        self.balance += sum(self.money_sum) + self.total_cashback
 
-train_data = get_image_files_and_labels(train_path)
-val_data = get_image_files_and_labels(val_path)
-test_data = get_image_files_and_labels(test_path)
+    def calculate_cashback(self, shop, amount):
+        # Исключение перевода через СБП из начисления кэшбэка
+        if shop == 'СБП' or amount > 0:
+            return 0
+        # Получение процента кэшбэка для магазина, либо использование значения по умолчанию
+        percentage = self.cashback_rules.get(shop, self.cashback_rules['default'])
+        # Вычисление кэшбэка для расходной операции и округление вверх до ближайшего целого числа
+        cashback = math.ceil(abs(amount) * (percentage / 100))
+        return cashback
 
-# Проверка, что DataFrame не пуст
-if train_data.empty:
-    print("Ошибка: DataFrame train_data пустой!")
-if val_data.empty:
-    print("Ошибка: DataFrame val_data пустой!")
-if test_data.empty:
-    print("Ошибка: DataFrame test_data пустой!")
+    def calc_cashback(self):
+        # Возвращение общей суммы начисленного кэшбэка
+        return self.total_cashback
 
-# Добавление информации о размере изображений в DataFrame
-def add_image_info(data):
-    sizes = []
-    for filepath in tqdm(data['filepath']):
-        img = cv2.imread(filepath)
-        sizes.append(img.shape)
-    data['size'] = sizes
-    return data
+    def get_balance(self):
+        # Возвращение текущего баланса
+        return self.balance
 
-# Добавление информации о размерах изображений для тренировочной, валидационной и тестовой выборок
-train_data = add_image_info(train_data)
-val_data = add_image_info(val_data)
-test_data = add_image_info(test_data)
+    def set_cashback_rule(self, shop, percentage):
+        # Установка или обновление правила кэшбэка для указанного магазина
+        self.cashback_rules[shop] = percentage
 
-# Сохранение данных в CSV файлы для последующего использования
-train_data.to_csv('train_data.csv', index=False)
-val_data.to_csv('val_data.csv', index=False)
-test_data.to_csv('test_data.csv', index=False)
+    def get_history(self):
+        # Возвращение истории покупок в виде списка кортежей (дата, магазин, сумма операции)
+        return list(zip(self.buy_dates, self.shop_names, self.money_sum))
 
-# Вывод первых нескольких строк данных для каждой выборки
-print("Train data sample:")
-print(train_data.head())
+# Константа для обозначения перевода через СБП
+SBP_SHOP = 'СБП'
 
-print("Validation data sample:")
-print(val_data.head())
+# Пример использования:
+bank = CyberdyanskBank()
 
-print("Test data sample:")
-print(test_data.head())
+# Добавление покупок
+purchases = [
+    ('2023.10.10', 'Пятёрочка', -189),  # Покупка в супермаркете Пятёрочка
+    ('2023.10.12', SBP_SHOP, 1000),  # Положительная операция через СБП
+    ('2023.10.13', 'Лента', -1301),  # Покупка в супермаркете Лента
+    ('2023.10.13', 'ДНС', -4999),  # Покупка в магазине электроники ДНС
+    ('2023.10.14', 'Лэтуаль', -1999),  # Покупка в магазине косметики Лэтуаль
+    # Еще одна покупка в супермаркете Пятёрочка
+    ('2023.10.15', 'Пятёрочка', -396),
+    ('2023.10.15', SBP_SHOP, -500),  # Отрицательная операция через СБП
+]
 
-# Шаг 3: Анализ одного случайного изображения
-if not train_data.empty:
-    random_image = random.choice(train_data['filepath'].tolist())
-    img = cv2.imread(random_image)
-    gray_img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+# Добавляем все покупки из списка в банк
+bank.add_purchases(purchases)
 
-    print("Размер изображения:", gray_img.shape)
+# Вычисление общего кэшбэка
+total_cashback = bank.calc_cashback()
+print(f"Total cashback: {total_cashback}")
 
-    plt.hist(gray_img.ravel(), bins=256, range=(0, 256))
-    plt.title('Гистограмма значений пикселей')
-    plt.xlabel('Значение пикселя')
-    plt.ylabel('Частота')
-    plt.show()
-else:
-    print("Ошибка: DataFrame train_data пустой, невозможно выбрать случайное изображение.")
+# Получение текущего баланса
+current_balance = bank.get_balance()
+print(f"Current balance: {current_balance}")
 
-# Шаг 4: Подсчет количества изображений каждого класса
-def count_images(data):
-    return data['label'].value_counts()
+# Получение истории покупок и вывод каждой покупки на отдельной строке
+history = bank.get_history()
+print("Purchase history:")
+for record in history:
+    print(record)
 
-print("Количество изображений в тренировочной выборке:")
-print(count_images(train_data))
-
-print("Количество изображений в валидационной выборке:")
-print(count_images(val_data))
-
-print("Количество изображений в тестовой выборке:")
-print(count_images(test_data))
-
-# Шаг 5: Построение случайной модели
-def random_model(data):
-    predictions = np.random.choice(['NORMAL', 'PNEUMONIA'], len(data))
-    return predictions
-
-train_predictions = random_model(train_data)
-test_predictions = random_model(test_data)
-
-# Шаг 6: Оценка точности случайной модели
-def calculate_accuracy(true_labels, predictions):
-    return (true_labels == predictions).mean()
-
-train_accuracy = calculate_accuracy(train_data['label'], train_predictions)
-test_accuracy = calculate_accuracy(test_data['label'], test_predictions)
-
-print(f"Точность случайной модели на тренировочной выборке: {train_accuracy:.2f}")
-print(f"Точность случайной модели на тестовой выборке: {test_accuracy:.2f}")
-
-# Шаг 7: Модель на основе количества белого
-def white_based_model(data):
-    thresholds = {
-        'NORMAL': 200,
-        'PNEUMONIA': 500,
-    }
-    predictions = []
-    for filepath in data['filepath']:
-        img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
-        white_pixels = np.sum(img > 200)
-        if white_pixels > thresholds['PNEUMONIA']:
-            predictions.append('PNEUMONIA')
-        else:
-            predictions.append('NORMAL')
-    return predictions
-
-train_white_predictions = white_based_model(train_data)
-test_white_predictions = white_based_model(test_data)
-
-# Шаг 8: Оценка точности модели на основе количества белого
-train_white_accuracy = calculate_accuracy(train_data['label'], train_white_predictions)
-test_white_accuracy = calculate_accuracy(test_data['label'], test_white_predictions)
-
-print(f"Точность модели на основе количества белого на тренировочной выборке: {train_white_accuracy:.2f}")
-print(f"Точность модели на основе количества белого на тестовой выборке: {test_white_accuracy:.2f}")
-
-# Шаг 9: Учет доли белого, соответствующего костям
-def improved_white_based_model(data, bone_threshold):
-    predictions = []
-    for filepath in data['filepath']:
-        img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
-        white_pixels = np.sum(img > 200)
-        total_pixels = img.size
-        bone_pixels = total_pixels * bone_threshold
-        effective_white_pixels = white_pixels - bone_pixels
-        if effective_white_pixels > 0:
-            predictions.append('PNEUMONIA')
-        else:
-            predictions.append('NORMAL')
-    return predictions
-
-bone_threshold = 0.1
-
-train_improved_predictions = improved_white_based_model(train_data, bone_threshold)
-test_improved_predictions = improved_white_based_model(test_data, bone_threshold)
-
-# Шаг 10: Оценка точности и сбалансированной точности новой модели
-train_improved_accuracy = calculate_accuracy(train_data['label'], train_improved_predictions)
-test_improved_accuracy = calculate_accuracy(test_data['label'], test_improved_predictions)
-
-def balanced_accuracy(true_labels, predictions):
-    classes = np.unique(true_labels)
-    recall_per_class = []
-    
-    for cls in classes:
-        true_positives = np.sum((true_labels == cls) & (predictions == cls))
-        false_negatives = np.sum((true_labels == cls) & (predictions != cls))
-        recall = true_positives / (true_positives + false_negatives)
-        recall_per_class.append(recall)
-    
-    balanced_acc = np.mean(recall_per_class)
-    return balanced_acc
-
-train_balanced_accuracy = balanced_accuracy(train_data['label'], train_improved_predictions)
-test_balanced_accuracy = balanced_accuracy(test_data['label'], test_improved_predictions)
-
-print(f"Точность улучшенной модели на тренировочной выборке: {train_improved_accuracy:.2f}")
-print(f"Точность улучшенной модели на тестовой выборке: {test_improved_accuracy:.2f}")
-print(f"Сбалансированная точность улучшенной модели на тренировочной выборке: {train_balanced_accuracy:.2f}")
-print(f"Сбалансированная точность улучшенной модели на тестовой выборке: {test_balanced_accuracy:.2f}")
-
-# Шаг 11: Сбор результатов в таблицу
-results = pd.DataFrame({
-    'Model': ['Random Model', 'White Based Model', 'Improved White Based Model'],
-    'Train Accuracy': [train_accuracy, train_white_accuracy, train_improved_accuracy],
-    'Test Accuracy': [test_accuracy, test_white_accuracy, test_improved_accuracy],
-    'Train Balanced Accuracy': [None, None, train_balanced_accuracy],
-    'Test Balanced Accuracy': [None, None, test_balanced_accuracy],
-})
-
-print("Результаты моделей:")
-print(results)
+# Проверка начисления кэшбэка для перевода через СБП
+test_purchase = (SBP_SHOP, -1000)
+cashback = bank.calculate_cashback(test_purchase[0], test_purchase[1])
+print(f"Cashback for {test_purchase[0]} with amount {test_purchase[1]}: {cashback}")
