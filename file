@@ -32,7 +32,7 @@ class CyberdyanskBank:
 
     def calculate_cashback(self, shop, amount):
         # Исключение перевода через СБП из начисления кэшбэка
-        if shop == 'СБП' or amount > 0:
+        if shop == SBP_SHOP or amount > 0:
             return 0
         # Получение процента кэшбэка для магазина, либо использование значения по умолчанию
         percentage = self.cashback_rules.get(shop, self.cashback_rules['default'])
@@ -56,6 +56,13 @@ class CyberdyanskBank:
         # Возвращение истории покупок в виде списка кортежей (дата, магазин, сумма операции)
         return list(zip(self.buy_dates, self.shop_names, self.money_sum))
 
+    def validate_purchase(self, amount):
+        # Проверка, что сумма операции не превышает текущий баланс и баланс не станет отрицательным
+        if self.balance + amount < 0:
+            print(f"Transaction declined: insufficient funds for amount {amount}")
+            return False
+        return True
+
 # Константа для обозначения перевода через СБП
 SBP_SHOP = 'СБП'
 
@@ -74,8 +81,10 @@ purchases = [
     ('2023.10.15', SBP_SHOP, -500),  # Отрицательная операция через СБП
 ]
 
-# Добавляем все покупки из списка в банк
-bank.add_purchases(purchases)
+# Проверка и добавление всех покупок из списка в банк
+valid_purchases = [purchase for purchase in purchases if bank.validate_purchase(purchase[2])]
+if valid_purchases:
+    bank.add_purchases(valid_purchases)
 
 # Вычисление общего кэшбэка
 total_cashback = bank.calc_cashback()
