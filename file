@@ -44,14 +44,14 @@ class CyberdyanskBank:
         shopping = [p for p in purchases if p[1] != SBP_SHOP]
 
         # Проверка и добавление переводов
-        valid_transfers = [t for t in transfers if self.validate_purchase(t[2])]
-        for transfer in valid_transfers:
-            self.add_purchase(*transfer)
+        for transfer in transfers:
+            if self.validate_purchase(transfer[2]):
+                self.add_purchase(*transfer)
 
         # Проверка и добавление покупок
-        valid_shopping = [s for s in shopping if self.validate_purchase(s[2])]
-        for shop in valid_shopping:
-            self.add_purchase(*shop)
+        for shop in shopping:
+            if self.validate_purchase(shop[2]):
+                self.add_purchase(*shop)
 
     def calculate_cashback(self, shop, amount):
         # Исключение перевода через СБП из начисления кэшбэка
