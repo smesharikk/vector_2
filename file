@@ -4,85 +4,58 @@ import math
 class CyberdyanskBank:
 
     def __init__(self, initial_balance=10000):
-        # Инициализация начального баланса и текущего баланса
         self.initial_balance = initial_balance
         self.balance = initial_balance
-        # Инициализация списков для хранения дат покупок, названий магазинов и сумм операций
         self.buy_dates = []
         self.shop_names = []
         self.money_sum = []
-        # Инициализация правил кэшбэка для различных магазинов
         self.cashback_rules = {
-            'default': 1,  # По умолчанию 1% кэшбэк на все покупки
-            'Пятёрочка': 5,  # 5% кэшбэк на покупки в супермаркетах
-            'Лента': 5,  # 5% кэшбэк на покупки в супермаркетах
-            'ДНС': 3,  # 3% кэшбэк на покупки в магазинах электроники
-            'Лэтуаль': 10,  # 10% кэшбэк на покупки в магазинах косметики
+            'default': 1,
+            'Пятёрочка': 5,
+            'Лента': 5,
+            'ДНС': 3,
+            'Лэтуаль': 10,
         }
-        self.total_cashback = 0  # Инициализация общей суммы начисленного кэшбэка
+        self.total_cashback = 0
 
     def add_purchase(self, date, shop, amount):
         if not self.validate_purchase(amount):
-            return  # Если операция не валидна, ничего не делаем
+            return
 
-        # Добавление даты покупки, названия магазина и суммы операции в соответствующие списки
         self.buy_dates.append(date)
         self.shop_names.append(shop)
         self.money_sum.append(amount)
 
-        # Вычисление кэшбэка для данной операции
         cashback = self.calculate_cashback(shop, amount)
-
-        # Обновление общей суммы кэшбэка
         self.total_cashback += cashback
-
-        # Обновление текущего баланса с учетом суммы операции и начисленного кэшбэка
         self.balance += amount + cashback
 
     def add_purchases(self, purchases):
-        # Разделяем покупки на переводы и покупки
-        transfers = [p for p in purchases if p[1] == SBP_SHOP]
-        shopping = [p for p in purchases if p[1] != SBP_SHOP]
-
-        # Проверка и добавление переводов
-        for transfer in transfers:
-            if self.validate_purchase(transfer[2]):
-                self.add_purchase(*transfer)
-
-        # Проверка и добавление покупок
-        for shop in shopping:
-            if self.validate_purchase(shop[2]):
-                self.add_purchase(*shop)
+        sorted_purchases = sorted(purchases, key=lambda x: x[0])
+        for purchase in sorted_purchases:
+            self.add_purchase(*purchase)
 
     def calculate_cashback(self, shop, amount):
-        # Исключение перевода через СБП из начисления кэшбэка
         if shop == SBP_SHOP or amount > 0:
             return 0
-        # Получение процента кэшбэка для магазина, либо использование значения по умолчанию
         percentage = self.cashback_rules.get(
             shop, self.cashback_rules['default'])
-        # Вычисление кэшбэка для расходной операции и округление вверх до ближайшего целого числа
         cashback = math.ceil(abs(amount) * (percentage / 100))
         return cashback
 
     def calc_cashback(self):
-        # Возвращение общей суммы начисленного кэшбэка
         return self.total_cashback
 
     def get_balance(self):
-        # Возвращение текущего баланса
         return self.balance
 
     def set_cashback_rule(self, shop, percentage):
-        # Установка или обновление правила кэшбэка для указанного магазина
         self.cashback_rules[shop] = percentage
 
     def get_history(self):
-        # Возвращение истории покупок в виде списка кортежей (дата, магазин, сумма операции)
         return list(zip(self.buy_dates, self.shop_names, self.money_sum))
 
     def validate_purchase(self, amount):
-        # Проверка, что сумма операции не превышает текущий баланс и баланс не станет отрицательным
         if self.balance + amount < 0:
             print(
                 f"Transaction declined: insufficient funds for amount {amount}")
@@ -90,7 +63,6 @@ class CyberdyanskBank:
         return True
 
 
-# Константа для обозначения перевода через СБП
 SBP_SHOP = 'СБП'
 
 # Пример использования:
@@ -98,14 +70,13 @@ bank = CyberdyanskBank()
 
 # Добавление покупок
 purchases = [
-    ('2023.10.10', 'Пятёрочка', -189),  # Покупка в супермаркете Пятёрочка
-    ('2023.10.12', SBP_SHOP, 1000),  # Положительная операция через СБП
-    ('2023.10.13', 'Лента', -1301),  # Покупка в супермаркете Лента
-    ('2023.10.13', 'ДНС', -4999),  # Покупка в магазине электроники ДНС
-    ('2023.10.14', 'Лэтуаль', -1999),  # Покупка в магазине косметики Лэтуаль
-    # Еще одна покупка в супермаркете Пятёрочка
+    ('2023.10.10', 'Пятёрочка', -189),
+    ('2023.10.12', SBP_SHOP, 1000),
+    ('2023.10.13', 'Лента', -1301),
+    ('2023.10.13', 'ДНС', -4999),
+    ('2023.10.14', 'Лэтуаль', -1999),
     ('2023.10.15', 'Пятёрочка', -396),
-    ('2023.10.15', SBP_SHOP, -500),  # Отрицательная операция через СБП
+    ('2023.10.15', SBP_SHOP, -500),
 ]
 
 # Добавляем все покупки из списка в банк
