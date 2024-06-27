@@ -4,17 +4,18 @@ import math
 class CyberdyanskBank:
 
     def __init__(self, initial_balance=10000):
+        Const_default = 1
         self.initial_balance = initial_balance
         self.balance = initial_balance
         self.buy_dates = []
         self.shop_names = []
         self.money_sum = []
         self.cashback_rules = {
-            'default': 1,
-            'Пятёрочка': 5,
-            'Лента': 5,
-            'ДНС': 3,
-            'Лэтуаль': 10,
+            'default': Const_default,
+            'Пятёрочка': 5 + Const_default,
+            'Лента': 5 + Const_default,
+            'ДНС': 3 + Const_default,
+            'Лэтуаль': 10 + Const_default,
         }
         self.total_cashback = 0
 
@@ -76,7 +77,7 @@ purchases = [
     ('2023.10.13', 'ДНС', -4999),
     ('2023.10.14', 'Лэтуаль', -1999),
     ('2023.10.15', 'Пятёрочка', -396),
-    ('2023.10.15', SBP_SHOP, -500),
+
 ]
 
 # Добавляем все покупки из списка в банк
